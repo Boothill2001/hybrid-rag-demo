@@ -1,0 +1,15 @@
+Dẹp cái file HTML giả lập đi, và tao cũng KHÔNG CẦN mày viết Proposal hay Plan gì hết. Ngưng lải nhải và bắt tay vào CODE THẬT ngay bây giờ.
+
+Tao yêu cầu mày đóng vai một Backend Engineer và viết cho tao 2 file sau đây bằng Python:
+
+1. File requirements.txt: Chứa đúng các thư viện cần thiết: fastapi, uvicorn, langchain, langchain-groq, chromadb, sentence-transformers.
+
+2. File app.py: Chứa một REST API thật bằng FastAPI, thực hiện đúng 3 việc:
+
+Khởi tạo ChromaDB (chạy local, in-memory cũng được).
+
+Dùng sentence-transformers (all-MiniLM-L6-v2) để nhúng (embed) một đoạn text cứng (hardcode 1 đoạn text tiếng Việt khoảng 5 câu vào code để làm data mẫu) và lưu vào ChromaDB.
+
+Viết 1 endpoint POST /chat, nhận câu hỏi từ user, tìm kiếm trong ChromaDB, và gọi API của Groq (dùng model Llama-3-8b-8192) để trả về câu trả lời.
+
+Code phải clean, có try-catch lỗi, chạy được ngay bằng lệnh uvicorn app:app --reload. Không giải thích dài dòng, show code ra đây!

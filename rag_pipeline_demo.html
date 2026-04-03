@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Self-Reflective RAG Pipeline | AI Portfolio Demo</title>
+    <meta name="description" content="Interactive demo of a production-grade Self-Reflective RAG system with Hybrid Search, LangGraph orchestration, and LLM-as-a-Judge quality gate.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* =============================================
+           1. DESIGN TOKENS
+           ============================================= */
+        :root {
+            --bg-deep:        #060d1a;
+            --bg-surface:     #0d1b2e;
+            --bg-card:        #111f35;
+            --border-subtle:  rgba(255, 255, 255, 0.07);
+            --border-medium:  rgba(255, 255, 255, 0.13);
+
+            --accent-blue:    #3b82f6;
+            --accent-teal:    #14b8a6;
+            --accent-purple:  #a855f7;
+            --accent-green:   #22c55e;
+            --accent-orange:  #f59e0b;
+            --accent-red:     #ef4444;
+            --accent-indigo:  #6366f1;
+
+            --text-primary:   #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted:     #475569;
+
+            --font-body:      'Inter', sans-serif;
+            --font-mono:      'JetBrains Mono', monospace;
+
+            --radius-sm:  6px;
+            --radius-md:  12px;
+            --radius-lg:  18px;
+            --radius-xl:  24px;
+
+            --shadow-glow-blue:   0 0 22px rgba(59, 130, 246, 0.35);
+            --shadow-glow-green:  0 0 22px rgba(34, 197, 94, 0.35);
+            --shadow-glow-purple: 0 0 22px rgba(168, 85, 247, 0.35);
+            --shadow-glow-red:    0 0 22px rgba(239, 68, 68, 0.35);
+            --shadow-glow-orange: 0 0 22px rgba(245, 158, 11, 0.35);
+
+            --transition-fast:   0.2s ease;
+            --transition-normal: 0.35s ease;
+        }
+
+        /* =============================================
+           2. RESET & BASE
+           ============================================= */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            /* Subtle grid background */
+            background-image:
+                linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* =============================================
+           3. LAYOUT SHELL
+           ============================================= */
+        .page-wrapper {
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 36px 24px 60px;
+        }
+
+        /* =============================================
+           4. PAGE HEADER
+           ============================================= */
+        .page-header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 14px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 18px;
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            background: rgba(99, 102, 241, 0.1);
+            color: #818cf8;
+        }
+
+        .badge-dot {
+            width: 7px; height: 7px;
+            background: var(--accent-indigo);
+            border-radius: 50%;
+            animation: pulse-dot 1.8s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%       { opacity: 0.4; transform: scale(0.7); }
+        }
+
+        .page-title {
+            font-size: clamp(28px, 4vw, 46px);
+            font-weight: 900;
+            letter-spacing: -1.5px;
+            line-height: 1.1;
+            margin-bottom: 16px;
+
+            /* Gradient text */
+            background: linear-gradient(135deg, #f1f5f9 20%, #818cf8 60%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            font-size: 15px;
+            color: var(--text-secondary);
+            max-width: 640px;
+            margin: 0 auto 24px;
+            line-height: 1.65;
+        }
+
+        /* Tech tags */
+        .tech-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        .tech-tag {
+            padding: 4px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            transition: border-color var(--transition-fast), color var(--transition-fast);
+        }
+        .tech-tag:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+        /* =============================================
+           5. MAIN GRID
+           ============================================= */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+        @media (max-width: 960px) {
+            .main-grid { grid-template-columns: 1fr; }
+        }
+
+        /* =============================================
+           6. GLASS CARD (reusable)
+           ============================================= */
+        .glass-card {
+            background: rgba(13, 27, 46, 0.7);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+        }
+
+        /* =============================================
+           7. LEFT PANEL — SCENARIOS
+           ============================================= */
+        .panel-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+        }
+
+        .scenario-btn {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            cursor: pointer;
+            text-align: left;
+            margin-bottom: 12px;
+            transition: all var(--transition-fast);
+            position: relative;
+            overflow: hidden;
+        }
+        .scenario-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, transparent 60%, rgba(255,255,255,0.02) 100%);
+            pointer-events: none;
+        }
+        .scenario-btn:hover {
+            border-color: rgba(255,255,255,0.2);
+            background: #162235;
+            transform: translateX(4px);
+        }
+        .scenario-btn.is-active {
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        .scenario-tag {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .scenario-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+        .scenario-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            line-height: 1.5;
+        }
+
+        /* Callout box */
+        .callout {
+            background: rgba(239,68,68,0.06);
+            border: 1px solid rgba(239,68,68,0.25);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-top: 6px;
+        }
+        .callout strong.q { color: #f87171; }
+        .callout strong.a { color: #4ade80; }
+
+        /* =============================================
+           8. TERMINAL / LOG
+           ============================================= */
+        .terminal-wrap {
+            margin-top: 16px;
+        }
+        .terminal {
+            height: 220px;
+            overflow-y: auto;
+            background: #03080f;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            line-height: 1.7;
+            /* Custom scrollbar */
+            scrollbar-width: thin;
+            scrollbar-color: #1e2d45 transparent;
+        }
+        .terminal::-webkit-scrollbar { width: 4px; }
+        .terminal::-webkit-scrollbar-track { background: transparent; }
+        .terminal::-webkit-scrollbar-thumb { background: #1e2d45; border-radius: 4px; }
+
+        .log-entry { margin-bottom: 4px; }
+        .log-ts { color: var(--text-muted); margin-right: 8px; }
+        .log-idle { color: var(--text-muted); font-style: italic; }
+
+        /* =============================================
+           9. RIGHT PANEL — PIPELINE DIAGRAM
+           ============================================= */
+        .pipeline-card {
+            /* extra padding top for the boundary label */
+            padding-top: 28px;
+        }
+
+        /* Pipeline is a flex column centered */
+        .pipeline {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            padding: 8px 0;
+        }
+
+        /* ---- Node ---- */
+        .p-node {
+            background: var(--bg-card);
+            border: 1.5px solid #2a3d55;
+            border-radius: var(--radius-sm);
+            padding: 13px 18px;
+            text-align: center;
+            transition: all var(--transition-normal);
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Width variants */
+        .p-node.w-md  { width: 300px; }
+        .p-node.w-lg  { width: 380px; }
+
+        .p-node-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-secondary);
+            margin-bottom: 3px;
+            transition: color var(--transition-normal);
+        }
+        .p-node-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.4;
+            font-family: var(--font-mono);
+        }
+
+        /* Node state modifiers */
+        .p-node.state-active  {
+            border-color: var(--accent-blue);
+            background: rgba(59,130,246,0.1);
+            box-shadow: var(--shadow-glow-blue);
+            transform: scale(1.025);
+        }
+        .p-node.state-active .p-node-title  { color: #60a5fa; }
+
+        .p-node.state-success {
+            border-color: var(--accent-green);
+            background: rgba(34,197,94,0.1);
+            box-shadow: var(--shadow-glow-green);
+        }
+        .p-node.state-success .p-node-title { color: #4ade80; }
+
+        .p-node.state-danger  {
+            border-color: var(--accent-red);
+            background: rgba(239,68,68,0.1);
+            box-shadow: var(--shadow-glow-red);
+        }
+        .p-node.state-danger .p-node-title  { color: #f87171; }
+
+        .p-node.state-warning {
+            border-color: var(--accent-orange);
+            background: rgba(245,158,11,0.1);
+            box-shadow: var(--shadow-glow-orange);
+        }
+        .p-node.state-warning .p-node-title { color: #fbbf24; }
+
+        .p-node.state-purple  {
+            border-color: var(--accent-purple);
+            background: rgba(168,85,247,0.1);
+            box-shadow: var(--shadow-glow-purple);
+            transform: scale(1.025);
+        }
+        .p-node.state-purple .p-node-title  { color: #c084fc; }
+
+        /* ---- Arrows / Connectors ---- */
+        .p-arrow {
+            width: 2px;
+            height: 18px;
+            background: #2a3d55;
+            margin: 0 auto;
+            position: relative;
+            transition: background var(--transition-normal), box-shadow var(--transition-normal);
+        }
+        .p-arrow::after {
+            content: '';
+            position: absolute;
+            bottom: -4px; left: -4px;
+            width: 10px; height: 10px;
+            border-right: 2px solid #2a3d55;
+            border-bottom: 2px solid #2a3d55;
+            transform: rotate(45deg);
+            transition: border-color var(--transition-normal);
+        }
+        .p-arrow.state-active  { background: var(--accent-blue);   box-shadow: 0 0 8px var(--accent-blue); }
+        .p-arrow.state-active::after  { border-color: var(--accent-blue); }
+        .p-arrow.state-success { background: var(--accent-green);  box-shadow: 0 0 8px var(--accent-green); }
+        .p-arrow.state-success::after { border-color: var(--accent-green); }
+        .p-arrow.state-purple  { background: var(--accent-purple);  box-shadow: 0 0 8px var(--accent-purple); }
+        .p-arrow.state-purple::after  { border-color: var(--accent-purple); }
+
+        /* ---- LangGraph boundary box ---- */
+        .langgraph-boundary {
+            border: 1.5px dashed rgba(99,102,241,0.45);
+            background: rgba(99,102,241,0.04);
+            border-radius: var(--radius-lg);
+            padding: 20px 20px 20px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            width: 100%;
+            max-width: 480px;
+        }
+        .langgraph-label {
+            position: absolute;
+            top: -11px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-deep);
+            padding: 2px 12px;
+            border: 1px solid rgba(99,102,241,0.45);
+            border-radius: 100px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #818cf8;
+            white-space: nowrap;
+        }
+
+        /* ---- Hybrid Search row ---- */
+        .hybrid-row {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+        }
+        .hybrid-row .p-node { flex: 1; }
+
+        /* Merge connector (Y shape) */
+        .merge-connector {
+            width: 100%;
+            height: 32px;
+            position: relative;
+        }
+        .merge-connector .m-left {
+            position: absolute;
+            top: 0; right: 50%;
+            width: 50%; height: 22px;
+            border-left: 2px solid #2a3d55;
+            border-bottom: 2px solid #2a3d55;
+            border-radius: 0 0 0 8px;
+            transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+        }
+        .merge-connector .m-right {
+            position: absolute;
+            top: 0; left: 50%;
+            width: 50%; height: 22px;
+            border-right: 2px solid #2a3d55;
+            border-bottom: 2px solid #2a3d55;
+            border-radius: 0 0 8px 0;
+            transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+        }
+        .merge-connector .m-stem {
+            position: absolute;
+            bottom: 0; left: 50%;
+            transform: translateX(-50%);
+            width: 2px; height: 10px;
+            background: #2a3d55;
+            transition: background var(--transition-normal), box-shadow var(--transition-normal);
+        }
+        .merge-connector.state-active .m-left,
+        .merge-connector.state-active .m-right  { border-color: var(--accent-blue); box-shadow: 0 0 6px var(--accent-blue); }
+        .merge-connector.state-active .m-stem   { background: var(--accent-blue); box-shadow: 0 0 6px var(--accent-blue); }
+
+        /* ---- Cyclic feedback loop ---- */
+        .feedback-loop {
+            position: absolute;
+            left: -36px;
+            top: 0; bottom: 0;
+            width: 36px;
+            border-left:   2px dashed var(--accent-orange);
+            border-top:    2px dashed var(--accent-orange);
+            border-bottom: 2px dashed var(--accent-orange);
+            border-radius: var(--radius-md) 0 0 var(--radius-md);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition-normal), box-shadow var(--transition-normal);
+        }
+        .feedback-loop::before {
+            content: '';
+            position: absolute;
+            top: -5px; right: 0;
+            width: 10px; height: 10px;
+            border-top: 2px solid var(--accent-orange);
+            border-right: 2px solid var(--accent-orange);
+            transform: rotate(45deg);
+        }
+        .feedback-loop .loop-label {
+            position: absolute;
+            left: -78px; top: 50%;
+            transform: translateY(-50%);
+            width: 70px;
+            text-align: right;
+            font-size: 9px;
+            font-weight: 700;
+            line-height: 1.3;
+            color: var(--accent-orange);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .feedback-loop.is-visible {
+            opacity: 1;
+            box-shadow: -6px 0 20px rgba(245,158,11,0.15);
+        }
+
+        /* Wrapping div for the LLM+Judge block to contain the feedback loop */
+        .self-correct-zone {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        /* =============================================
+           10. FOOTER METRICS BAR
+           ============================================= */
+        .metrics-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px;
+            margin-top: 24px;
+        }
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 22px;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            line-height: 1;
+            margin-bottom: 4px;
+            background: linear-gradient(135deg, #f1f5f9, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .metric-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* =============================================
+           11. UTILITY
+           ============================================= */
+        .mt-0  { margin-top: 0; }
+        .mb-12 { margin-bottom: 12px; }
+        .mt-16 { margin-top: 16px; }
+        .mt-24 { margin-top: 24px; }
+
+        /* Color accents for node titles (default, non-state) */
+        .c-blue   { color: #60a5fa; }
+        .c-teal   { color: #2dd4bf; }
+        .c-rose   { color: #fb7185; }
+        .c-green  { color: #4ade80; }
+        .c-purple { color: #c084fc; }
+        .c-yellow { color: #fbbf24; }
+        .c-orange { color: #fb923c; }
+        .c-indigo { color: #818cf8; }
+
+    </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+
+    <!-- ======== PAGE HEADER ======== -->
+    <header class="page-header">
+        <div class="badge">
+            <span class="badge-dot"></span>
+            Production Architecture · AI Engineering Portfolio
+        </div>
+        <h1 class="page-title">Self-Reflective RAG Pipeline</h1>
+        <p class="page-subtitle">
+            An end-to-end, production-grade RAG system featuring <strong>Hybrid Search</strong> (Dense + Sparse), 
+            <strong>Reciprocal Rank Fusion</strong>, <strong>LangGraph cyclic orchestration</strong>, 
+            and an <strong>LLM-as-a-Judge</strong> quality gate with automatic self-correction loops.
+        </p>
+        <div class="tech-tags">
+            <span class="tech-tag">FastAPI</span>
+            <span class="tech-tag">LangGraph</span>
+            <span class="tech-tag">Milvus</span>
+            <span class="tech-tag">vLLM / TGI</span>
+            <span class="tech-tag">PhoBERT / BGE</span>
+            <span class="tech-tag">Microsoft Presidio</span>
+            <span class="tech-tag">BM25</span>
+            <span class="tech-tag">Docker · K8s</span>
+        </div>
+    </header>
+
+    <!-- ======== MAIN GRID ======== -->
+    <div class="main-grid">
+
+        <!-- ======== LEFT: CONTROLS ======== -->
+        <div class="left-panel">
+            <div class="glass-card">
+                <p class="panel-label">Run Simulation</p>
+
+                <!-- Scenario 1 -->
+                <button class="scenario-btn" id="btn-normal" onclick="runSimulation('normal', this)">
+                    <div class="scenario-tag" style="color: var(--accent-green);">✅ Scenario 1 — Happy Path</div>
+                    <div class="scenario-title">Clean Query · Successful Retrieval</div>
+                    <div class="scenario-desc">
+                        Full pipeline executes without issues. PII masked, hybrid retrieval succeeds, 
+                        LLM generates a verified, high-confidence answer.
+                    </div>
+                </button>
+
+                <!-- Scenario 2 -->
+                <button class="scenario-btn" id="btn-reflect" onclick="runSimulation('reflection', this)">
+                    <div class="scenario-tag" style="color: var(--accent-orange);">🔄 Scenario 2 — Self-Correction Triggered</div>
+                    <div class="scenario-title">Hallucination Detected · LangGraph Retry</div>
+                    <div class="scenario-desc">
+                        LLM-as-a-Judge rejects the first generation. LangGraph activates its cyclic 
+                        feedback loop, re-prompts the generation node, and re-validates.
+                    </div>
+                </button>
+
+                <!-- Interview callout -->
+                <div class="callout mt-16">
+                    <strong class="q">Interviewer:</strong> "Putting the judge at the end adds latency and timeout risk — how do you handle that?"<br><br>
+                    <strong class="a">Answer:</strong> "That's exactly why I used <strong>LangGraph</strong>. 
+                    The judge isn't a one-off call — it's a dedicated <em>Node</em> inside a cyclic state graph. 
+                    On failure, instead of returning a bad response, the graph routes back to the generation node 
+                    (self-correction) or triggers a fallback model — completely transparent to the end-user."
+                </div>
+            </div>
+
+            <!-- Terminal / Event Log -->
+            <div class="glass-card mt-16">
+                <p class="panel-label">Event Log</p>
+                <div class="terminal" id="terminal">
+                    <span class="log-idle">Awaiting simulation trigger...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======== RIGHT: PIPELINE DIAGRAM ======== -->
+        <div class="glass-card pipeline-card">
+            <p class="panel-label" style="text-align:center; margin-bottom: 20px;">Live Pipeline Visualization</p>
+
+            <div class="pipeline">
+
+                <!-- 1. FastAPI Gateway -->
+                <div class="p-node w-md" id="n-api">
+                    <div class="p-node-title c-blue">FastAPI Application</div>
+                    <div class="p-node-sub">HTTP / WebSocket Gateway</div>
+                </div>
+                <div class="p-arrow" id="a-1"></div>
+
+                <!-- 2. Multi-layer Cache -->
+                <div class="p-node w-md" id="n-cache">
+                    <div class="p-node-title c-teal">Multi-layer Cache</div>
+                    <div class="p-node-sub">Semantic Cache (Redis) · Exact Cache</div>
+                </div>
+                <div class="p-arrow" id="a-2"></div>
+
+                <!-- 3. ML Circuit Breaker -->
+                <div class="p-node w-md" id="n-cb">
+                    <div class="p-node-title c-rose">ML Circuit Breaker</div>
+                    <div class="p-node-sub">Load Monitor · Fallback Policies</div>
+                </div>
+                <div class="p-arrow" id="a-3"></div>
+
+                <!-- === LangGraph Boundary === -->
+                <div class="langgraph-boundary" id="langgraph-box">
+                    <div class="langgraph-label">LangGraph Cyclic Agent Orchestrator</div>
+
+                    <!-- 4. PII Handler -->
+                    <div class="p-node w-lg" id="n-pii" style="margin-top: 8px;">
+                        <div class="p-node-title">PII Handler &amp; Prompt Guard</div>
+                        <div class="p-node-sub">OCR + LayoutLM → Presidio / Google DLP</div>
+                        <div class="p-node-sub">Semantic Filter → Anti-Injection (DAN)</div>
+                    </div>
+                    <div class="p-arrow" id="a-4"></div>
+
+                    <!-- 5. Hybrid Search -->
+                    <div class="hybrid-row" id="n-hybrid-row">
+                        <div class="p-node" id="n-dense">
+                            <div class="p-node-title c-blue" style="font-size:11px;">Dense Retrieval</div>
+                            <div class="p-node-sub">Bi-encoder (PhoBERT)<br>Milvus Vector Space</div>
+                        </div>
+                        <div class="p-node" id="n-sparse">
+                            <div class="p-node-title c-orange" style="font-size:11px;">Sparse Retrieval</div>
+                            <div class="p-node-sub">BM25 / MeiliSearch<br>Keyword TF-IDF</div>
+                        </div>
+                    </div>
+
+                    <!-- Merge Y-connector -->
+                    <div class="merge-connector" id="merge-conn">
+                        <div class="m-left"  id="mc-left"></div>
+                        <div class="m-right" id="mc-right"></div>
+                        <div class="m-stem"  id="mc-stem"></div>
+                    </div>
+
+                    <!-- 6. RRF + Reranker -->
+                    <div class="p-node w-lg" id="n-rrf">
+                        <div class="p-node-title c-purple">Fusion &amp; Reranking</div>
+                        <div class="p-node-sub">Reciprocal Rank Fusion (RRF)</div>
+                        <div class="p-node-sub">Cross-Encoder (BGE-Reranker) · Logit Scoring</div>
+                    </div>
+                    <div class="p-arrow" id="a-6"></div>
+
+                    <!-- Self-correction zone (LLM + Judge, with feedback arc) -->
+                    <div class="self-correct-zone">
+                        <!-- Orange dashed feedback arc -->
+                        <div class="feedback-loop" id="feedback-loop">
+                            <span class="loop-label">Cyclic<br>Self-Correct</span>
+                        </div>
+
+                        <!-- 7. Generation Node -->
+                        <div class="p-node w-lg" id="n-llm">
+                            <div class="p-node-title c-green">Generation Node</div>
+                            <div class="p-node-sub">Dynamic Batching Inference Engine</div>
+                            <div class="p-node-sub">vLLM / TGI · PagedAttention</div>
+                        </div>
+                        <div class="p-arrow" id="a-7"></div>
+
+                        <!-- 8. Critic / Judge -->
+                        <div class="p-node w-lg" id="n-judge">
+                            <div class="p-node-title c-yellow">Critic Node — LLM-as-a-Judge</div>
+                            <div class="p-node-sub">Hallucination · Toxicity · Faithfulness Check</div>
+                            <div class="p-node-sub">Routes: Approve → Output | Reject → Retry</div>
+                        </div>
+                    </div>
+
+                </div><!-- /langgraph-boundary -->
+
+                <div class="p-arrow" id="a-8"></div>
+
+                <!-- 9. Response Output -->
+                <div class="p-node w-md" id="n-output">
+                    <div class="p-node-title" style="color: var(--text-secondary);">Structured Response</div>
+                    <div class="p-node-sub">HTTP 200 OK · Streaming SSE</div>
+                    <div class="p-node-sub">Docker Container · K8s Pod</div>
+                </div>
+
+            </div><!-- /pipeline -->
+
+            <!-- Metrics bar -->
+            <div class="metrics-bar">
+                <div class="metric-card">
+                    <div class="metric-value">~P95</div>
+                    <div class="metric-label">Latency Target</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">Hybrid</div>
+                    <div class="metric-label">Search Strategy</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">RRF</div>
+                    <div class="metric-label">Fusion Method</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">Cyclic</div>
+                    <div class="metric-label">Graph Type</div>
+                </div>
+            </div>
+
+        </div><!-- /pipeline-card -->
+
+    </div><!-- /main-grid -->
+
+</div><!-- /page-wrapper -->
+
+
+<!-- =============================================
+     SIMULATION SCRIPT (Skeleton — logic wired up)
+     ============================================= -->
+<script>
+    const terminal   = document.getElementById('terminal');
+    const feedbackEl = document.getElementById('feedback-loop');
+
+    // ---- Helpers ----
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+
+    function ts() {
+        return new Date().toISOString().substring(11, 23);
+    }
+
+    function log(msg, type = 'info') {
+        const colors = {
+            info:    '#94a3b8',
+            success: '#4ade80',
+            danger:  '#f87171',
+            warning: '#fbbf24',
+            purple:  '#c084fc',
+        };
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `<span class="log-ts">[${ts()}]</span><span style="color:${colors[type] || colors.info}">${msg}</span>`;
+        terminal.appendChild(entry);
+        terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function setState(id, state) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.className = el.className.replace(/state-\w+/g, '').trim();
+        if (state) el.classList.add(`state-${state}`);
+    }
+
+    function setMerge(state) {
+        const mc = document.getElementById('merge-conn');
+        mc.className = mc.className.replace(/state-\w+/g, '').trim();
+        if (state) mc.classList.add(`state-${state}`);
+    }
+
+    function resetAll() {
+        const nodeIds  = ['n-api','n-cache','n-cb','n-pii','n-dense','n-sparse','n-rrf','n-llm','n-judge','n-output'];
+        const arrowIds = ['a-1','a-2','a-3','a-4','a-6','a-7','a-8'];
+        nodeIds.forEach(id  => setState(id, null));
+        arrowIds.forEach(id => setState(id, null));
+        setMerge(null);
+        feedbackEl.classList.remove('is-visible');
+        document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('is-active'));
+        terminal.innerHTML = '';
+    }
+
+    // ---- Main simulation ----
+    async function runSimulation(type, btn) {
+        resetAll();
+        if (btn) btn.classList.add('is-active');
+
+        const STEP = 650; // ms per step
+
+        log('🚀 API request received — FastAPI gateway active.', 'info');
+        setState('n-api', 'active');
+        await wait(STEP);
+
+        log('🔍 Checking cache layers... Cache MISS. Evaluating circuit breaker...', 'info');
+        setState('a-1', 'active'); setState('n-cache', 'active');
+        await wait(STEP / 2);
+        setState('a-2', 'active'); setState('n-cb', 'success');
+        await wait(STEP);
+
+        setState('a-3', 'active');
+        log('⚙️  LangGraph Orchestrator initialised — resolving state machine.', 'purple');
+
+        setState('n-pii', 'active');
+        log('🕵️  PII Handler: OCR extraction via LayoutLM model...', 'info');
+        await wait(STEP);
+        log('🎭  Masking complete: PII entities redacted (Presidio/DLP). DAN injection blocked.', 'success');
+        setState('n-pii', 'success');
+        await wait(STEP);
+
+        setState('a-4', 'active');
+        log('🔀  Dispatching Hybrid Search in parallel (Dense + Sparse)...', 'warning');
+        setState('n-dense', 'active'); setState('n-sparse', 'active');
+        await wait(STEP);
+        log('🧩  [Dense]  PhoBERT Bi-encoder → Milvus: top-100 semantic candidates retrieved.', 'info');
+        log('🧩  [Sparse] BM25 Keyword index → top-100 lexical candidates retrieved.', 'info');
+        await wait(STEP);
+
+        setMerge('active');
+        setState('n-rrf', 'purple');
+        log('🌀  Merge: Reciprocal Rank Fusion (RRF) applied across both result lists.', 'purple');
+        await wait(STEP);
+        log('⚖️  BGE Cross-Encoder reranking by logit score — selecting top-5 context chunks.', 'warning');
+        await wait(STEP);
+
+        setState('a-6', 'active'); setState('n-llm', 'active');
+        log('🧠  Generation Node: dynamic batching inference engine (vLLM) producing answer...', 'info');
+        await wait(1100);
+        setState('n-llm', 'success');
+
+        setState('a-7', 'active'); setState('n-judge', 'warning');
+        log('⚖️  Critic Node (LLM-as-a-Judge): auditing faithfulness, hallucination, toxicity...', 'warning');
+        await wait(1400);
+
+        // === Branch: reflection scenario ===
+        if (type === 'reflection') {
+            log('❌  REJECTED: Hallucination detected in generation. Refusing to surface to user.', 'danger');
+            setState('n-judge', 'danger');
+            await wait(700);
+
+            log('🔄  LangGraph routing to self-correction cycle — re-invoking generation node.', 'warning');
+            feedbackEl.classList.add('is-visible');
+
+            setState('n-llm', null); setState('n-llm', 'warning');
+            setState('a-7', null);
+            await wait(1400);
+
+            log('🧠  Generation Node (retry): refined system prompt — producing corrected answer...', 'info');
+            setState('n-llm', 'success');
+            feedbackEl.classList.remove('is-visible');
+            setState('a-7', 'active');
+
+            setState('n-judge', null); setState('n-judge', 'warning');
+            log('⚖️  Critic Node re-eval on corrected output...', 'warning');
+            await wait(1000);
+        }
+
+        log('✅  APPROVED — confidence score 98%. Output cleared for delivery.', 'success');
+        setState('n-judge', 'success');
+        await wait(STEP);
+
+        setState('a-8', 'active'); setState('n-output', 'success');
+        log('📦  Graph exit → FastAPI response stream. HTTP 200 delivered to client.', 'success');
+    }
+</script>
+
+</body>
+</html>

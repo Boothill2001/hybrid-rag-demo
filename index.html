@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid Search RAG · Live Demo</title>
+    <meta name="description" content="Live demo of a production Hybrid Search RAG: Dense (ChromaDB) + Sparse (BM25) + RRF + Groq LLM.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:      #05101f;
+            --surface: #0c1a2e;
+            --card:    #101f36;
+            --bdr:     rgba(255,255,255,.08);
+            --bdr-md:  rgba(255,255,255,.14);
+            --blue:    #3b82f6;
+            --teal:    #14b8a6;
+            --purple:  #a855f7;
+            --green:   #22c55e;
+            --orange:  #f59e0b;
+            --red:     #ef4444;
+            --indigo:  #6366f1;
+            --t1: #f1f5f9; --t2: #94a3b8; --t3: #475569;
+            --mono: 'JetBrains Mono', monospace;
+            --sans: 'Inter', sans-serif;
+            --ease: 0.3s ease;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--sans); background: var(--bg); color: var(--t1);
+            min-height: 100vh;
+            background-image:
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99,102,241,.12), transparent),
+                linear-gradient(rgba(59,130,246,.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59,130,246,.025) 1px, transparent 1px);
+            background-size: auto, 44px 44px, 44px 44px;
+        }
+        .shell { max-width: 1280px; margin: 0 auto; padding: 36px 24px 64px; }
+
+        /* HEADER */
+        header { text-align: center; margin-bottom: 44px; }
+        .badge {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 5px 16px; border-radius: 100px;
+            font-size: 10px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase;
+            margin-bottom: 20px; border: 1px solid rgba(99,102,241,.4);
+            background: rgba(99,102,241,.1); color: #818cf8;
+        }
+        .badge-dot {
+            width: 6px; height: 6px; border-radius: 50%; background: var(--indigo);
+            animation: blink 1.6s ease-in-out infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(.6)} }
+        h1 {
+            font-size: clamp(28px, 4.5vw, 52px); font-weight: 900;
+            letter-spacing: -2px; line-height: 1.05; margin-bottom: 16px;
+            background: linear-gradient(135deg, #f1f5f9 10%, #818cf8 55%, #c084fc 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .subtitle { font-size: 15px; color: var(--t2); max-width: 580px; margin: 0 auto 24px; line-height: 1.65; }
+        .tags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+        .tag {
+            font-family: var(--mono); font-size: 10px; font-weight: 600;
+            padding: 4px 12px; border-radius: 100px;
+            border: 1px solid var(--bdr); background: var(--card); color: var(--t2);
+            transition: all .2s;
+        }
+        .tag:hover { border-color: var(--blue); color: var(--blue); }
+
+        /* GRID */
+        .grid { display: grid; grid-template-columns: 1fr 420px; gap: 20px; align-items: start; }
+        @media(max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+
+        /* CARD */
+        .card {
+            background: rgba(12,26,46,.75); backdrop-filter: blur(16px);
+            border: 1px solid var(--bdr-md); border-radius: 20px; padding: 24px;
+        }
+        .card-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--t3); margin-bottom: 14px; }
+
+        /* INPUT */
+        textarea {
+            width: 100%; min-height: 90px; resize: vertical;
+            background: var(--card); border: 1px solid var(--bdr-md); border-radius: 12px;
+            padding: 14px 16px; font-family: var(--sans); font-size: 14px;
+            color: var(--t1); line-height: 1.55; outline: none; margin-bottom: 12px;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+        textarea::placeholder { color: var(--t3); }
+        .send-row { display: flex; gap: 10px; align-items: center; }
+        .topk-label { font-size: 12px; color: var(--t2); white-space: nowrap; }
+        .topk-input {
+            width: 60px; padding: 8px 10px; background: var(--card);
+            border: 1px solid var(--bdr-md); border-radius: 8px;
+            color: var(--t1); font-family: var(--mono); font-size: 13px; outline: none;
+        }
+        #send-btn {
+            flex: 1; padding: 11px 20px;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            border: none; border-radius: 12px;
+            font-family: var(--sans); font-size: 14px; font-weight: 700;
+            color: #fff; cursor: pointer; transition: all .2s;
+        }
+        #send-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(99,102,241,.35); }
+        #send-btn:disabled { opacity: .5; cursor: not-allowed; }
+        .status-row { display: flex; align-items: center; gap: 8px; padding: 10px 0 0; font-size: 11px; color: var(--t3); }
+        .s-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--t3); transition: background .3s; }
+        .s-dot.active { background: var(--blue); animation: blink .8s ease-in-out infinite; }
+        .s-dot.done   { background: var(--green); animation: none; }
+        .s-dot.error  { background: var(--red); animation: none; }
+
+        /* RESULT PANELS */
+        .results-area { margin-top: 18px; display: flex; flex-direction: column; gap: 12px; }
+        .rp {
+            background: var(--card); border: 1px solid var(--bdr);
+            border-radius: 12px; overflow: hidden;
+            transition: border-color .3s, box-shadow .3s;
+        }
+        .rp.state-active { border-color: var(--blue); box-shadow: 0 0 18px rgba(59,130,246,.2); }
+        .rp.state-done   { border-color: var(--green); box-shadow: 0 0 18px rgba(34,197,94,.15); }
+
+        .rp-head {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 16px; border-bottom: 1px solid var(--bdr);
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; cursor: pointer; user-select: none;
+        }
+        .rp-head:hover { background: rgba(255,255,255,.02); }
+        .rp-chev { margin-left: auto; font-size: 11px; color: var(--t3); transition: transform .25s; }
+        .rp-chev.open { transform: rotate(180deg); }
+        .rp-body { padding: 14px 16px; display: none; }
+        .rp-body.open { display: block; }
+
+        #answer-text { font-size: 14px; line-height: 1.7; color: var(--t1); }
+        #answer-text.placeholder { color: var(--t3); font-style: italic; }
+        .error-box {
+            background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.3);
+            border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #f87171;
+        }
+
+        /* DOC LIST */
+        .doc-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .doc-item {
+            background: var(--surface); border: 1px solid var(--bdr);
+            border-radius: 8px; padding: 10px 13px;
+            font-size: 12px; line-height: 1.55; color: var(--t2);
+        }
+        .doc-rank {
+            display: inline-block; font-family: var(--mono); font-size: 10px;
+            font-weight: 700; padding: 1px 7px; border-radius: 100px; margin-bottom: 5px;
+            background: rgba(99,102,241,.15); color: #818cf8;
+        }
+
+        /* RRF TABLE */
+        .rrf-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .rrf-table th {
+            text-align: left; color: var(--t3); font-weight: 600;
+            padding: 6px 10px; border-bottom: 1px solid var(--bdr);
+            font-family: var(--mono); font-size: 10px;
+        }
+        .rrf-table td {
+            padding: 8px 10px; color: var(--t2); vertical-align: top;
+            border-bottom: 1px solid rgba(255,255,255,.04);
+        }
+        .rrf-table td:last-child { font-family: var(--mono); color: var(--orange); white-space: nowrap; }
+        .rrf-bar-wrap { height: 4px; background: rgba(255,255,255,.06); border-radius: 4px; margin-top: 5px; }
+        .rrf-bar { height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--purple), var(--blue)); }
+
+        /* PIPELINE */
+        .pipeline-card { position: sticky; top: 20px; }
+        .pipeline { display: flex; flex-direction: column; align-items: center; padding: 8px 0; }
+
+        .pn {
+            background: var(--card); border: 1.5px solid #1e3352;
+            border-radius: 8px; padding: 13px 18px; text-align: center; width: 300px;
+            transition: all var(--ease); position: relative; z-index: 5;
+        }
+        .pn-t { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--t2); margin-bottom: 3px; transition: color var(--ease); }
+        .pn-s { font-family: var(--mono); font-size: 10px; color: var(--t3); line-height: 1.4; }
+
+        .pn.sa  { border-color:var(--blue);   background:rgba(59,130,246,.1);  box-shadow:0 0 20px rgba(59,130,246,.3);  transform:scale(1.03); }
+        .pn.sa .pn-t  { color: #60a5fa; }
+        .pn.ss  { border-color:var(--green);  background:rgba(34,197,94,.1);   box-shadow:0 0 20px rgba(34,197,94,.25); }
+        .pn.ss .pn-t  { color: #4ade80; }
+        .pn.sd  { border-color:var(--red);    background:rgba(239,68,68,.1);   box-shadow:0 0 20px rgba(239,68,68,.25); }
+        .pn.sd .pn-t  { color: #f87171; }
+        .pn.sp  { border-color:var(--purple); background:rgba(168,85,247,.1);  box-shadow:0 0 20px rgba(168,85,247,.3); transform:scale(1.03); }
+        .pn.sp .pn-t  { color: #c084fc; }
+        .pn.sw  { border-color:var(--orange); background:rgba(245,158,11,.1);  box-shadow:0 0 20px rgba(245,158,11,.25); }
+        .pn.sw .pn-t  { color: #fbbf24; }
+
+        .pa {
+            width: 2px; height: 18px; background: #1e3352; margin: 0 auto;
+            position: relative; transition: background var(--ease), box-shadow var(--ease);
+        }
+        .pa::after {
+            content: ''; position: absolute; bottom: -4px; left: -4px;
+            width: 10px; height: 10px;
+            border-right: 2px solid #1e3352; border-bottom: 2px solid #1e3352;
+            transform: rotate(45deg); transition: border-color var(--ease);
+        }
+        .pa.sa  { background: var(--blue);   box-shadow: 0 0 8px var(--blue); }
+        .pa.sa::after  { border-color: var(--blue); }
+        .pa.ss  { background: var(--green);  box-shadow: 0 0 8px var(--green); }
+        .pa.ss::after  { border-color: var(--green); }
+        .pa.sp  { background: var(--purple); box-shadow: 0 0 8px var(--purple); }
+        .pa.sp::after  { border-color: var(--purple); }
+
+        .hybrid-row { display: flex; gap: 10px; width: 300px; }
+        .hybrid-row .pn { flex: 1; width: auto; }
+        .merge { width: 300px; height: 28px; position: relative; }
+        .merge .ml { position:absolute; top:0; right:50%; width:50%; height:20px; border-left:2px solid #1e3352; border-bottom:2px solid #1e3352; border-radius:0 0 0 6px; transition: border-color var(--ease), box-shadow var(--ease); }
+        .merge .mr { position:absolute; top:0; left:50%;  width:50%; height:20px; border-right:2px solid #1e3352; border-bottom:2px solid #1e3352; border-radius:0 0 6px 0; transition: border-color var(--ease), box-shadow var(--ease); }
+        .merge .ms { position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:2px; height:8px; background:#1e3352; transition: background var(--ease), box-shadow var(--ease); }
+        .merge.sp .ml, .merge.sp .mr { border-color: var(--purple); box-shadow: 0 0 6px var(--purple); }
+        .merge.sp .ms { background: var(--purple); box-shadow: 0 0 6px var(--purple); }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,.15); border-top-color: #818cf8; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <header>
+        <div class="badge"><span class="badge-dot"></span>Live API Demo · Not a Simulation</div>
+        <h1>Hybrid Search RAG</h1>
+        <p class="subtitle">
+            Type any question. A real FastAPI backend runs <strong>Dense (ChromaDB) + Sparse (BM25)</strong>
+            in parallel, fuses with <strong>RRF</strong>, then <strong>Groq LLaMA-3</strong> answers.
+        </p>
+        <div class="tags">
+            <span class="tag">FastAPI</span>
+            <span class="tag">ChromaDB</span>
+            <span class="tag">BM25</span>
+            <span class="tag">RRF Fusion</span>
+            <span class="tag">sentence-transformers</span>
+            <span class="tag">Groq · llama-3.1-8b</span>
+        </div>
+    </header>
+
+    <div class="grid">
+        <!-- LEFT -->
+        <div>
+            <div class="card">
+                <p class="card-label">Ask the RAG System</p>
+                <textarea id="query" placeholder="e.g. Hybrid Search và RRF hoạt động như thế nào?&#10;e.g. What is BM25 and how does it differ from vector search?&#10;e.g. LangChain là gì?"></textarea>
+                <div class="send-row">
+                    <span class="topk-label">Top-K:</span>
+                    <input type="number" id="top-k" class="topk-input" value="3" min="1" max="8">
+                    <button id="send-btn">&#9889; Run Hybrid RAG</button>
+                </div>
+                <div class="status-row">
+                    <div class="s-dot" id="s-dot"></div>
+                    <span id="s-text">Ready — waiting for query.</span>
+                </div>
+            </div>
+
+            <div class="results-area">
+                <!-- Answer -->
+                <div class="rp" id="rp-answer">
+                    <div class="rp-head" data-target="rb-answer">
+                        <span>&#x1F4AC;</span>
+                        <span style="color:var(--green)">LLM Answer</span>
+                        <span class="rp-chev open">&#9660;</span>
+                    </div>
+                    <div class="rp-body open" id="rb-answer">
+                        <div id="answer-text" class="placeholder">Answer will appear here after query...</div>
+                    </div>
+                </div>
+
+                <!-- RRF Scores -->
+                <div class="rp" id="rp-rrf">
+                    <div class="rp-head" data-target="rb-rrf">
+                        <span>&#x1F300;</span>
+                        <span style="color:var(--purple)">RRF Fusion Scores</span>
+                        <span class="rp-chev">&#9660;</span>
+                    </div>
+                    <div class="rp-body" id="rb-rrf">
+                        <div id="rrf-content" style="color:var(--t3);font-style:italic;font-size:12px">Run a query to see RRF scores...</div>
+                    </div>
+                </div>
+
+                <!-- Dense -->
+                <div class="rp" id="rp-dense">
+                    <div class="rp-head" data-target="rb-dense">
+                        <span>&#x1F9E9;</span>
+                        <span style="color:var(--blue)">Dense Retrieval (ChromaDB)</span>
+                        <span class="rp-chev">&#9660;</span>
+                    </div>
+                    <div class="rp-body" id="rb-dense">
+                        <ul class="doc-list" id="dense-list"><li style="color:var(--t3);font-size:12px;font-style:italic">—</li></ul>
+                    </div>
+                </div>
+
+                <!-- Sparse -->
+                <div class="rp" id="rp-sparse">
+                    <div class="rp-head" data-target="rb-sparse">
+                        <span>&#x1F511;</span>
+                        <span style="color:var(--orange)">Sparse Retrieval (BM25)</span>
+                        <span class="rp-chev">&#9660;</span>
+                    </div>
+                    <div class="rp-body" id="rb-sparse">
+                        <ul class="doc-list" id="sparse-list"><li style="color:var(--t3);font-size:12px;font-style:italic">—</li></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT — PIPELINE -->
+        <div class="card pipeline-card">
+            <p class="card-label" style="text-align:center">Pipeline — Live State</p>
+            <div class="pipeline">
+                <div class="pn" id="n-api">
+                    <div class="pn-t">FastAPI Gateway</div>
+                    <div class="pn-s">POST /chat</div>
+                </div>
+                <div class="pa" id="a1"></div>
+
+                <div class="hybrid-row">
+                    <div class="pn" id="n-dense">
+                        <div class="pn-t" style="color:#60a5fa">Dense Search</div>
+                        <div class="pn-s">ChromaDB<br>cosine similarity</div>
+                    </div>
+                    <div class="pn" id="n-sparse">
+                        <div class="pn-t" style="color:#fb923c">Sparse Search</div>
+                        <div class="pn-s">BM25Okapi<br>keyword TF-IDF</div>
+                    </div>
+                </div>
+
+                <div class="merge" id="merge">
+                    <div class="ml"></div>
+                    <div class="mr"></div>
+                    <div class="ms"></div>
+                </div>
+
+                <div class="pn" id="n-rrf">
+                    <div class="pn-t" style="color:#c084fc">RRF Fusion</div>
+                    <div class="pn-s">score = 1/(60+rank_d)<br>+ 1/(60+rank_s)</div>
+                </div>
+                <div class="pa" id="a2"></div>
+
+                <div class="pn" id="n-llm">
+                    <div class="pn-t" style="color:#4ade80">Groq LLM</div>
+                    <div class="pn-s">llama-3.1-8b-instant<br>grounded generation</div>
+                </div>
+                <div class="pa" id="a3"></div>
+
+                <div class="pn" id="n-out">
+                    <div class="pn-t" style="color:var(--t2)">JSON Response</div>
+                    <div class="pn-s">answer + sources + scores</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    var API_BASE = 'http://localhost:8000';
+
+    /* ── tiny helpers ───────────────────────────────────────────── */
+    function g(id)       { return document.getElementById(id); }
+    function wait(ms)    { return new Promise(function(r){ setTimeout(r, ms); }); }
+
+    function setNode(id, cls) {
+        var n = g(id);
+        n.className = n.className.replace(/\bsa\b|\bss\b|\bsd\b|\bsp\b|\bsw\b/g, '').trim();
+        if (cls) n.classList.add(cls);
+    }
+    function setArrow(id, cls) {
+        var a = g(id);
+        a.className = a.className.replace(/\bsa\b|\bss\b|\bsd\b|\bsp\b/g, '').trim();
+        if (cls) a.classList.add(cls);
+    }
+    function setMerge(cls) {
+        var m = g('merge');
+        m.className = m.className.replace(/\bsp\b/g, '').trim();
+        if (cls) m.classList.add(cls);
+    }
+    function setStatus(dotCls, text) {
+        var dot = g('s-dot');
+        dot.className = 's-dot' + (dotCls ? ' ' + dotCls : '');
+        g('s-text').textContent = text;
+    }
+
+    function resetAll() {
+        ['n-api','n-dense','n-sparse','n-rrf','n-llm','n-out'].forEach(function(id){ setNode(id, null); });
+        ['a1','a2','a3'].forEach(function(id){ setArrow(id, null); });
+        setMerge(null);
+        ['rp-answer','rp-rrf','rp-dense','rp-sparse'].forEach(function(id){
+            g(id).className = 'rp';
+        });
+    }
+
+    function renderDocs(listId, docs) {
+        var html = docs.map(function(d, i){
+            return '<li class="doc-item"><span class="doc-rank">#' + (i+1) + '</span><br>' + escHtml(d) + '</li>';
+        }).join('');
+        g(listId).innerHTML = html;
+    }
+
+    function renderRRF(scores) {
+        var entries = Object.entries(scores);
+        if (!entries.length) return;
+        var maxScore = Math.max.apply(null, entries.map(function(e){ return e[1]; }));
+        var rows = entries.map(function(entry){
+            var doc = entry[0], score = entry[1];
+            var pct = Math.round((score / maxScore) * 100);
+            return '<tr><td>' + escHtml(doc) +
+                   '<div class="rrf-bar-wrap"><div class="rrf-bar" style="width:' + pct + '%"></div></div></td>' +
+                   '<td>' + score.toFixed(6) + '</td></tr>';
+        }).join('');
+        g('rrf-content').innerHTML =
+            '<table class="rrf-table"><thead><tr><th>Document</th><th>RRF Score</th></tr></thead><tbody>' +
+            rows + '</tbody></table>';
+    }
+
+    function escHtml(str) {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    /* ── accordion ──────────────────────────────────────────────── */
+    document.querySelectorAll('.rp-head').forEach(function(head) {
+        head.addEventListener('click', function() {
+            var targetId = head.getAttribute('data-target');
+            var body  = g(targetId);
+            var chev  = head.querySelector('.rp-chev');
+            var isOpen = body.classList.toggle('open');
+            if (chev) chev.classList.toggle('open', isOpen);
+        });
+    });
+
+    /* ── main query ─────────────────────────────────────────────── */
+    async function runQuery() {
+        var query = g('query').value.trim();
+        if (!query) { g('query').focus(); return; }
+        var topK = parseInt(g('top-k').value) || 3;
+        var btn  = g('send-btn');
+
+        resetAll();
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Running...';
+        setStatus('active', 'Sending request to FastAPI...');
+
+        setNode('n-api', 'sa');
+        await wait(300);
+        setNode('n-api', 'ss');
+
+        setArrow('a1', 'sa');
+        setNode('n-dense', 'sa');
+        setNode('n-sparse', 'sa');
+        setStatus('active', 'Running Dense (ChromaDB) + Sparse (BM25) in parallel...');
+
+        var data;
+        try {
+            var res = await fetch(API_BASE + '/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: query, top_k: topK })
+            });
+            if (!res.ok) {
+                var errBody = await res.json().catch(function(){ return {}; });
+                throw new Error(errBody.detail || ('HTTP ' + res.status));
+            }
+            data = await res.json();
+
+            setNode('n-dense', 'ss');
+            setNode('n-sparse', 'ss');
+            await wait(250);
+            setMerge('sp');
+            setNode('n-rrf', 'sp');
+            setStatus('active', 'Fusing results with RRF...');
+            g('rp-rrf').classList.add('state-active');
+            await wait(400);
+            setMerge(null);
+            setNode('n-rrf', 'ss');
+
+            setArrow('a2', 'sa');
+            setNode('n-llm', 'sa');
+            setStatus('active', 'Groq LLaMA-3 generating answer...');
+            g('rp-answer').classList.add('state-active');
+            await wait(400);
+            setNode('n-llm', 'ss');
+            setArrow('a2', 'ss');
+            setArrow('a3', 'sa');
+            setNode('n-out', 'sa');
+            await wait(200);
+            setNode('n-out', 'ss');
+            setArrow('a3', 'ss');
+
+            /* populate results */
+            var ansBox = g('answer-text');
+            ansBox.className = '';
+            ansBox.textContent = data.answer;
+            g('rp-answer').className = 'rp state-done';
+
+            if (data.rrf_scores_preview && Object.keys(data.rrf_scores_preview).length) {
+                renderRRF(data.rrf_scores_preview);
+                g('rp-rrf').className = 'rp state-done';
+                g('rb-rrf').classList.add('open');
+            }
+            if (data.dense_results && data.dense_results.length) {
+                renderDocs('dense-list', data.dense_results);
+                g('rp-dense').className = 'rp state-done';
+            }
+            if (data.sparse_results && data.sparse_results.length) {
+                renderDocs('sparse-list', data.sparse_results);
+                g('rp-sparse').className = 'rp state-done';
+            }
+
+            setStatus('done', 'Done — ' + (data.retrieved_context ? data.retrieved_context.length : topK) + ' docs via Hybrid Search + RRF → Groq LLM.');
+
+        } catch(err) {
+            resetAll();
+            setNode('n-api', 'sd');
+            setStatus('error', 'Error: ' + err.message);
+            var box = g('answer-text');
+            box.className = '';
+            box.innerHTML = '<div class="error-box">&#x274C; ' + escHtml(err.message) +
+                '<br><br>Make sure the backend server is running on port 8000.</div>';
+            g('rp-answer').className = 'rp';
+            g('rb-answer').classList.add('open');
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '&#9889; Run Hybrid RAG';
+    }
+
+    /* ── wire up button & Ctrl+Enter ────────────────────────────── */
+    g('send-btn').addEventListener('click', runQuery);
+    g('query').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) runQuery();
+    });
+
+})();
+</script>
+</body>
+</html>
