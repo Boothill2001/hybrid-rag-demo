@@ -100,7 +100,7 @@ async def lifespan(app: FastAPI):
     print("⏳ Setting up ChromaDB (persistent on ./chroma_db)...")
     chroma_client = chromadb.PersistentClient(path="./chroma_db")
     chroma_collection = chroma_client.get_or_create_collection(
-        name="rag_hybrid",
+        name="rag_hybrid_en",
         metadata={"hnsw:space": "cosine"},
     )
     if chroma_collection.count() == 0:
