@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upwork Portfolio Assets Kit</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050b14;
+            --surface: #0f172a;
+            --card: #1e293b;
+            --border: rgba(255, 255, 255, 0.1);
+            --blue: #3b82f6; --teal: #14b8a6; --purple: #a855f7;
+            --green: #10b981; --orange: #f59e0b; --red: #ef4444;
+            --t1: #f8fafc; --t2: #cbd5e1; --t3: #64748b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #121212;
+            color: var(--t1);
+            padding: 40px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 60px;
+        }
+        .instruction {
+            background: #27272a;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--blue);
+        }
+        .instruction h2 { font-size: 18px; margin-bottom: 8px; color: #60a5fa; }
+        .instruction p { font-size: 14px; color: #a1a1aa; line-height: 1.5; }
+
+        /* ==================== ASSET 1: ARCHITECTURE ==================== */
+        .asset-wrapper {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at top right, rgba(168, 85, 247, 0.1), transparent 40%),
+                radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.1), transparent 40%);
+        }
+        .asset-title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 50px;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .arch-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+            position: relative;
+        }
+        .node {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 24px;
+            text-align: center;
+            min-width: 220px;
+            z-index: 10;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        .node.user { border-top: 3px solid #64748b; }
+        .node.api { border-top: 3px solid #10b981; }
+        .node.chroma { border-left: 3px solid #3b82f6; }
+        .node.bm25 { border-right: 3px solid #f59e0b; }
+        .node.fusion { border-top: 3px solid #a855f7; }
+        .node.llm { border-bottom: 3px solid #ec4899; }
+        
+        .node-icon { font-size: 24px; margin-bottom: 8px; }
+        .node-title { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+        .node-sub { font-size: 12px; color: var(--t3); font-family: 'JetBrains Mono', monospace; }
+        
+        .row-parallel {
+            display: flex;
+            gap: 60px;
+            position: relative;
+        }
+
+        /* SVG Lines */
+        .svg-lines {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        path.line {
+            fill: none;
+            stroke: rgba(255,255,255,0.15);
+            stroke-width: 2;
+            stroke-dasharray: 4;
+            animation: dash 20s linear infinite;
+        }
+        @keyframes dash { to { stroke-dashoffset: -100; } }
+
+        /* ==================== ASSET 2: POSTMAN PROOF ==================== */
+        .postman-sim {
+            background: #111;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #333;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .pm-header {
+            background: #1e1e1e;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+        .pm-method {
+            background: #d97706; /* POST color */
+            color: white;
+            font-weight: 700;
+            font-size: 13px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-right: 12px;
+        }
+        .pm-url { font-family: 'JetBrains Mono'; font-size: 13px; color: #d4d4d8; flex: 1; }
+        .pm-send {
+            background: #2563eb; color: white; border-radius: 4px; padding: 6px 16px; font-size: 13px; font-weight: 600;
+        }
+        .pm-status {
+            font-family: 'JetBrains Mono'; font-size: 12px; color: #10b981; margin-left: auto; display: flex; align-items: center; gap: 8px;
+        }
+        
+        .pm-body {
+            display: flex;
+            height: 480px;
+        }
+        .pm-sidebar {
+            width: 50px; background: #18181b; border-right: 1px solid #333;
+        }
+        .pm-content {
+            flex: 1; padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #d4d4d8;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .j-key { color: #9cdcfe; }
+        .j-str { color: #ce9178; }
+        .j-num { color: #b5cea8; }
+        .j-brace { color: #ffd700; }
+        .j-bracket { color: #da70d6; }
+
+        /* The Red Circle */
+        .red-marker {
+            position: absolute;
+            top: 215px;
+            left: 20px;
+            width: 750px;
+            height: 220px;
+            border: 3px solid #ef4444;
+            border-radius: 12px;
+            pointer-events: none;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+        }
+        /* Hand drawn effect */
+        .red-marker::after {
+            content: 'Crucial Proof: Hybrid + RRF';
+            position: absolute;
+            top: -12px; right: 20px;
+            background: #ef4444;
+            color: white; font-family: 'Inter'; font-weight: 700; font-size: 11px;
+            padding: 2px 8px; border-radius: 100px;
+            transform: rotate(2deg);
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="instruction">
+        <h2>📷 Gói Asset cho Upwork Profile</h2>
+        <p>1. Mở file này trên trình duyệt và để ở chế độ Toàn màn hình (F11).<br>
+           2. Dùng Snipping Tool (Windows + Shift + S) để cắt riêng từng khu vực.<br>
+           3. Đối với Ảnh 3 (Giao diện Demo), bạn hãy mở thẳng trang <code>http://localhost:7800/index.html</code> (gõ 1 câu hỏi cho nó hiện kết quả) rồi cap màn hình lại nhé. Đó là thật nhất!</p>
+    </div>
+
+    <!-- ẢNH 1: KIẾN TRÚC -->
+    <div class="asset-wrapper">
+        <div class="asset-title">Enterprise Hybrid Retrieval-Augmented Generation</div>
+        
+        <div class="arch-diagram" id="archBox">
+            <!-- SVG Lines -->
+            <svg class="svg-lines" viewBox="0 0 1000 600" preserveAspectRatio="none">
+                <!-- User -> API -->
+                <path class="line" d="M 500 80 L 500 130" />
+                <!-- API -> Left (Dense) -->
+                <path class="line" d="M 500 200 L 500 230 L 330 230 L 330 280" />
+                <!-- API -> Right (Sparse) -->
+                <path class="line" d="M 500 200 L 500 230 L 670 230 L 670 280" />
+                <!-- Left (Dense) -> Fusion -->
+                <path class="line" d="M 330 360 L 330 400 L 500 400 L 500 440" />
+                <!-- Right (Sparse) -> Fusion -->
+                <path class="line" d="M 670 360 L 670 400 L 500 400 L 500 440" />
+                <!-- Fusion -> LLM -->
+                <path class="line" d="M 500 510 L 500 550" />
+            </svg>
+
+            <!-- Nodes -->
+            <div class="node user" style="margin-top: 10px;">
+                <div class="node-icon">👤</div>
+                <div class="node-title">User Query</div>
+                <div class="node-sub">"What is a hybrid search?"</div>
+            </div>
+            
+            <div class="node api">
+                <div class="node-icon">🔌</div>
+                <div class="node-title">FastAPI Gateway</div>
+                <div class="node-sub">POST /chat · Async Router</div>
+            </div>
+
+            <div class="row-parallel">
+                <div class="node chroma">
+                    <div class="node-icon">🧠</div>
+                    <div class="node-title">Dense Retrieval</div>
+                    <div class="node-sub">ChromaDB<br>all-MiniLM-L6-v2<br>Cosine Similarity</div>
+                </div>
+                
+                <div class="node bm25">
+                    <div class="node-icon">🔑</div>
+                    <div class="node-title">Sparse Retrieval</div>
+                    <div class="node-sub">In-Memory Index<br>BM25 Okapi<br>Keyword TF-IDF</div>
+                </div>
+            </div>
+
+            <div class="node fusion">
+                <div class="node-icon">🌀</div>
+                <div class="node-title">Reciprocal Rank Fusion (RRF)</div>
+                <div class="node-sub">Score Merge & Deduplication<br>k = 60</div>
+            </div>
+
+            <div class="node llm" style="margin-bottom: 20px;">
+                <div class="node-icon">⚡</div>
+                <div class="node-title">Groq LLM Generation</div>
+                <div class="node-sub">llama-3.1-8b-instant<br>Context-Grounded Response</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ẢNH 2: POSTMAN PROOF -->
+    <div class="asset-wrapper" style="background: #18181b;">
+        <div class="asset-title" style="margin-bottom: 30px;">Proof of Work · API Response</div>
+        
+        <div class="postman-sim">
+            <div class="pm-header">
+                <div class="pm-method">POST</div>
+                <div class="pm-url">http://localhost:8000/chat</div>
+                <div class="pm-status"><span>200 OK</span> <span style="color:#64748b">128 ms</span> <span style="color:#64748b">3.2 KB</span></div>
+            </div>
+            <div class="pm-body">
+                <div class="pm-sidebar"></div>
+                <div class="pm-content">
+                    <div class="red-marker"></div>
+<pre>
+<span class="j-brace">{</span>
+  <span class="j-key">"answer"</span>: <span class="j-str">"Hybrid Search combines two methods: semantic search (Dense Retrieval) 
+             using vectors and keyword search (Sparse Retrieval) using BM25. 
+             It then uses the RRF algorithm to merge the results..."</span>,
+  <span class="j-key">"query"</span>: <span class="j-str">"What is Hybrid Search?"</span>,
+  <span class="j-key">"retrieved_context"</span>: <span class="j-bracket">[</span>
+    <span class="j-str">"[1] Hybrid Search combines Dense Retrieval (vector similarity)..."</span>,
+    <span class="j-str">"[2] RAG (Retrieval-Augmented Generation) is a technique..."</span>
+  <span class="j-bracket">]</span>,
+  <span class="j-key">"dense_results"</span>: <span class="j-bracket">[</span>
+    <span class="j-str">"Hybrid Search combines Dense Retrieval (vector similarity)..."</span>,
+    <span class="j-str">"RAG (Retrieval-Augmented Generation) is a technique..."</span>,
+    <span class="j-str">"ChromaDB is an open-source vector database that stores embeddings..."</span>
+  <span class="j-bracket">]</span>,
+  <span class="j-key">"sparse_results"</span>: <span class="j-bracket">[</span>
+    <span class="j-str">"Hybrid Search combines Dense Retrieval (vector similarity)..."</span>,
+    <span class="j-str">"BM25 (Best Match 25) is a ranking algorithm based on an improved TF-IDF..."</span>,
+    <span class="j-str">"Reciprocal Rank Fusion (RRF) is an algorithm that merges multiple ranked..."</span>
+  <span class="j-bracket">]</span>,
+  <span class="j-key">"rrf_scores_preview"</span>: <span class="j-brace">{</span>
+    <span class="j-key">"Hybrid Search combines Dense Retrieval (vector similarity)..."</span>: <span class="j-num">0.032786</span>,
+    <span class="j-key">"BM25 (Best Match 25) is a ranking algorithm based on an improved TF-IDF..."</span>: <span class="j-num">0.016129</span>,
+    <span class="j-key">"RAG (Retrieval-Augmented Generation) is a technique..."</span>: <span class="j-num">0.016129</span>
+  <span class="j-brace">}</span>
+<span class="j-brace">}</span>
+</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

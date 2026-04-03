@@ -25,16 +25,16 @@ load_dotenv()
 # KNOWLEDGE BASE — Sample Vietnamese documents
 # ─────────────────────────────────────────────────────────────────────────────
 SAMPLE_DOCS = [
-    "RAG (Retrieval-Augmented Generation) là kỹ thuật kết hợp tìm kiếm thông tin với mô hình ngôn ngữ lớn để sinh ra câu trả lời chính xác và có căn cứ hơn.",
-    "ChromaDB là vector database mã nguồn mở, lưu trữ embedding và tìm kiếm theo độ tương đồng cosine, hỗ trợ chạy hoàn toàn in-memory hoặc persistent trên disk.",
-    "Sentence Transformers là thư viện Python tạo ra dense embedding chất lượng cao từ văn bản, hỗ trợ đa ngôn ngữ bao gồm tiếng Việt thông qua mô hình all-MiniLM-L6-v2.",
-    "LangChain là framework mã nguồn mở giúp xây dựng ứng dụng AI với LLM, cung cấp abstraction cho chains, agents, memory và tích hợp với hàng trăm data sources.",
-    "Groq là nền tảng inference phần cứng tốc độ cao cho các mô hình LLM lớn như LLaMA-3 và Mixtral, cung cấp API miễn phí với độ trễ cực thấp nhờ chip LPU.",
-    "Hybrid Search kết hợp Dense Retrieval (vector similarity) và Sparse Retrieval (BM25 keyword) rồi dùng Reciprocal Rank Fusion để merge kết quả, cho độ chính xác cao hơn từng phương pháp riêng lẻ.",
-    "LangGraph là extension của LangChain cho phép xây dựng các agentic workflow dưới dạng đồ thị có hướng, hỗ trợ vòng lặp cyclic và self-correction loop.",
-    "FastAPI là web framework Python hiệu năng cao, tự động sinh ra OpenAPI docs, hỗ trợ async/await và được dùng rộng rãi trong production AI APIs.",
-    "BM25 (Best Match 25) là thuật toán ranking dựa trên TF-IDF cải tiến, phổ biến trong sparse retrieval vì hiệu quả cao với keyword matching và không cần GPU.",
-    "Reciprocal Rank Fusion (RRF) là thuật toán gộp nhiều danh sách kết quả ranked, tính điểm theo công thức 1/(k + rank) rồi cộng lại, giúp boost các tài liệu xuất hiện cao ở nhiều list.",
+    "RAG (Retrieval-Augmented Generation) is a technique that combines information retrieval with large language models to generate accurate and grounded answers.",
+    "ChromaDB is an open-source vector database that stores embeddings and performs cosine similarity search, supporting both in-memory and persistent disk execution.",
+    "Sentence Transformers is a Python library that generates high-quality dense embeddings from text, supporting multiple languages through models like all-MiniLM-L6-v2.",
+    "LangChain is an open-source framework for building AI applications with LLMs, providing abstractions for chains, agents, memory, and integrating with hundreds of data sources.",
+    "Groq is an ultra-fast hardware inference platform for large LLMs like LLaMA-3 and Mixtral, providing a free API with extremely low latency powered by Custom LPU chips.",
+    "Hybrid Search combines Dense Retrieval (vector similarity) and Sparse Retrieval (BM25 keyword search), then uses Reciprocal Rank Fusion to merge results for higher accuracy than either method alone.",
+    "LangGraph is an extension of LangChain that allows building agentic workflows as directed graphs, supporting cyclic loops and self-correction mechanisms.",
+    "FastAPI is a high-performance Python web framework that automatically generates OpenAPI docs, supports async/await natively, and is widely used for production AI APIs.",
+    "BM25 (Best Match 25) is a ranking algorithm based on an improved TF-IDF formula, popular in sparse retrieval due to its high efficiency with keyword matching without requiring GPUs.",
+    "Reciprocal Rank Fusion (RRF) is an algorithm that merges multiple ranked result lists, calculating scores via the 1/(k + rank) formula, boosting documents that rank highly across multiple lists.",
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -252,14 +252,14 @@ async def chat(req: ChatRequest):
         )
         messages = [
             SystemMessage(content=(
-                "Bạn là trợ lý AI chuyên nghiệp. "
-                "Dựa vào các đoạn context được cung cấp (đã được tối ưu bằng Hybrid Search + RRF), "
-                "hãy trả lời câu hỏi một cách chính xác, ngắn gọn bằng tiếng Việt. "
-                "Nếu context không đủ, hãy nói thật."
+                "You are an expert AI assistant. "
+                "Based precisely on the provided context passages (optimized via Hybrid Search + RRF), "
+                "answer the user's question accurately and concisely in English. "
+                "If the context does not contain the answer, say you do not know."
             )),
             HumanMessage(content=(
                 f"Context (Hybrid Search + RRF):\n{context_block}\n\n"
-                f"Câu hỏi: {req.query}"
+                f"Question: {req.query}"
             )),
         ]
         response = llm.invoke(messages)
